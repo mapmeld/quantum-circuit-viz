@@ -1,0 +1,30 @@
+{
+  "name": "quantum-circuit-viz",
+  "version": "1.0.0",
+  "description": "Quantum circuit drawings in text and canvas",
+  "main": "index.js",
+  "scripts": {
+    "test": "mocha --compilers js:babel-core/register"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mapmeld/quantum-circuit-viz.git"
+  },
+  "keywords": [
+    "quantum",
+    "circuit"
+  ],
+  "author": "Nick Doiron <ndoiron@mapmeld.com>",
+  "license": "Apache-2.0",
+  "bugs": {
+    "url": "https://github.com/mapmeld/quantum-circuit-viz/issues"
+  },
+  "homepage": "https://github.com/mapmeld/quantum-circuit-viz#readme",
+  "devDependencies": {
+    "babel-core": "^6.26.3",
+    "babel-preset-es2015": "^6.24.1",
+    "chai": "^4.2.0",
+    "mocha": "^5.2.0",
+    "quantum-quail": "^1.3.3"
+  }
+}
