@@ -147,9 +147,9 @@ function empty_fillup_layer(layer, noqubits) {
   return layer.map((instruction, index) => {
     if (!instruction || (typeof instruction === 'number')) {
       if (index >= noqubits) {
-        return elements.EmptyWire('══════');
+        return elements.EmptyWire('═════');
       } else {
-        return elements.EmptyWire('──────');
+        return elements.EmptyWire('─────');
       }
     } else {
       return instruction;
@@ -291,10 +291,10 @@ const textViz = (circuit) => {
       layer.set_qubit(qubitsUsed[0], elements.Bullet());
       layer.set_qubit(qubitsUsed[1], elements.BoxOnQuWire(label));
 
-    } else if (qubitsUsed.length === 1 && circuit.registersUsed().length === 0) {
+    } else if (qubitsUsed.length === 1 && instruction.registersUsed().length === 0) {
       layer.set_qubit(qubitsUsed[0], elements.BoxOnQuWire(label_for_box(instruction)));
 
-    } else if (qubitsUsed.length >= 2 && circuit.registersUsed().length === 0) {
+    } else if (qubitsUsed.length >= 2 && instruction.registersUsed().length === 0) {
       layer.set_qu_multibox(qubitsUsed, label_for_box(instruction));
 
     } else {
