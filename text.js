@@ -34,8 +34,18 @@ function merge_lines(top, bot, icod) {
 
   let ret = "";
 
-  while(bot.length < top.length) {
-    bot = bot + ' ';
+  if (bot.length === 1) {
+    while (bot.length < top.length) {
+      bot += bot[0];
+    }
+  } else if (top.length === 1) {
+    while (top.length < bot.length) {
+      top += top[0];
+    }
+  } else {
+    while(bot.length < top.length) {
+      bot = bot + ' ';
+    }
   }
 
   function zip(arrays) {
@@ -133,10 +143,10 @@ function break_fillup_layer(layer_length, arrow_char) {
   return breakwire_layer;
 }
 
-function empty_fillup_layer(layer, isClassical) {
-  return layer.map((instruction) => {
-    if (!instruction) {
-      if (isClassical) {
+function empty_fillup_layer(layer, noqubits) {
+  return layer.map((instruction, index) => {
+    if (!instruction || (typeof instruction === 'number')) {
+      if (index >= noqubits) {
         return elements.EmptyWire('══════');
       } else {
         return elements.EmptyWire('──────');
@@ -303,6 +313,7 @@ const textViz = (circuit) => {
       noqubits = circuit.qubitsUsed().length,
       allLength = 0;
 
+  /* help make empty wires come in */
   layers.forEach((layer) => {
     allLength = Math.max(allLength, layer.length);
   });
@@ -314,7 +325,7 @@ const textViz = (circuit) => {
 
   layers.forEach((layer, layerno) => {
     // Replace the Nones with EmptyWire
-    layer = empty_fillup_layer(layer, (layerno >= noqubits));
+    layer = empty_fillup_layer(layer, noqubits);
     layers[layerno] = layer;
     // normalize_width(layer);
 
@@ -355,6 +366,7 @@ const textViz = (circuit) => {
   });
 
   let lines = [];
+
   layer_groups.forEach((layer_group) => {
     let wires = [];
 
@@ -380,17 +392,23 @@ const elements = {
         return [" ║ ",
                 "═╩═",
                 "   "];
-      }
+      },
+      top: ' ║ ',
+      mid: '═╩═',
+      bot: '   '
     };
   },
 
   MeasureFrom: () => {
     return {
       toString: () => {
-        return ["┌─┐",
+        return ['┌─┐',
                 "┤M├",
                 "└╥┘"];
-      }
+      },
+      top: '┌─┐',
+      mid: '┤M├',
+      bot: '└╥┘'
     };
   },
 
@@ -432,9 +450,9 @@ const elements = {
       toString: () => {
         return 'empty';
       },
-      top: ' ',
+      top: wire.split('').map(c => ' ').join(''),
       mid: wire,
-      bot: ' '
+      bot: wire.split('').map(c => ' ').join('')
     };
   },
 
