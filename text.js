@@ -8,6 +8,30 @@ Layer.prototype = {
     this.qubits[this.qubits.indexOf(qubit)] = element;
   },
 
+  set_qu_multibox: function (bits, label, connectors) {
+    connectors = connectors || {};
+    let top_connect = connectors.top_connect || null;
+    let bit_index = bits.map((bit) => {
+      return this.qubits.indexOf(bit);
+    }).sort();
+
+    for (let e = 1; e < bit_index.length; e++) {
+      if (bit_index[e] !== bit_index[e - 1] + 1) {
+        throw new Error('Visualizer cannot handle operation on non-neighboring qubits');
+      }
+    }
+
+    if (bits.length === 1) {
+      this.set_qubit(bits[0], elements.BoxOnQuWire(label, { top_connect: top_connect }));
+    } else {
+      this.set_qubit(bits[0], elements.BoxOnQuWireTop(label, { top_connect: top_connect }));
+      // bits.forEach((bit, bindex) => {
+      //   this.set_qubit(bit, elements.BoxOnQuWireMid(label, bits.length, order));
+      // });
+      this.set_qubit(bits[bits.length - 1], elements.BoxOnQuWireBot(label, bits.length));
+    }
+  },
+
   set_clbit: function (bit, element) {
     this.registers[this.registers.indexOf(bit)] = element;
   },
@@ -131,7 +155,17 @@ function draw_wires (wires) {
 }
 
 function label_for_box (instruction) {
-  return instruction.name;
+  if (instruction.angle) {
+    let radians = Math.PI;
+    if (instruction.angle.action === 'divide') {
+      radians /= instruction.angle.number;
+    } else {
+      radians *= instruction.angle.number;
+    }
+    return instruction.name + '(' + radians.toFixed(4) + ')';
+  } else {
+    return instruction.name;
+  }
 }
 
 function break_fillup_layer(layer_length, arrow_char) {
@@ -219,6 +253,8 @@ const textViz = (circuit) => {
   circuit.actions.forEach((instruction) => {
     instruction.name = instruction.name || 'measure';
 
+    console.log(instruction);
+
     let layer = new Layer(circuit.qubitsUsed(), circuit.registersUsed()),
         connector_label = null,
         qubitsUsed = instruction.qubitsUsed(),
@@ -236,17 +272,16 @@ const textViz = (circuit) => {
         layer.set_qubit(qubit, elements.Barrier());
       });
 
-    } else if (instruction.name === 'swap') {
-      qubitsUsed.forEach((qubit) => {
-        layer.set_qubit(qubit, elements.Ex());
-      });
+    } else if (instruction.name === 'SWAP') {
+      layer.set_qubit(qubitsUsed[0], elements.Ex('│'));
+      layer.set_qubit(qubitsUsed[1], elements.Ex(' '));
 
-    } else if (instruction.name === 'cswap') {
+    } else if (instruction.name === 'Controlled SWAP') {
       layer.set_qubit(qubitsUsed[0], elements.Bullet());
       layer.set_qubit(qubitsUsed[1], elements.Ex());
       layer.set_qubit(qubitsUsed[2], elements.Ex());
 
-    } else if (instruction.name === 'reset') {
+    } else if (instruction.name === 'Reset') {
       layer.set_qubit(qubitsUsed[0], elements.Reset());
 
     } else if (instruction.condition) {
@@ -257,35 +292,35 @@ const textViz = (circuit) => {
       layer.set_cl_multibox(instruction.condition[0], cllabel, { top_connect: '┴' });
       layer.set_qubit(qubitsUsed[0], elements.BoxOnQuWire(qulabel, { bot_connect: '┬' }));
 
-    } else if (['cx', 'CX', 'ccx'].indexOf(instruction.name) > -1) {
+    } else if (['Controlled X', 'ccx'].indexOf(instruction.name) > -1) {
       qubitsUsed.forEach((qubit) => {
         layer.set_qubit(qubit, elements.Bullet());
       });
       layer.set_qubit(qubitsUsed[qubitsUsed.length - 1], elements.BoxOnQuWire('X'));
 
-    } else if (instruction.name === 'cy') {
+    } else if (instruction.name === 'Controlled Y') {
       layer.set_qubit(qubitsUsed[0], elements.Bullet());
-      layer.set_qubit(qubitsUsed[1], elements.BoxOnQuWire('Y'));
+      layer.set_qubit(qubitsUsed[1], elements.BoxOnQuWire('Y', { top_connector: '┴' }));
 
-    } else if (instruction.name === 'cz') {
+    } else if (instruction.name === 'Controlled Z') {
       layer.set_qubit(qubitsUsed[0], elements.Bullet());
-      layer.set_qubit(qubitsUsed[1], elements.Bullet());
+      layer.set_qubit(qubitsUsed[1], elements.BoxOnQuWire('Z'));
 
-    } else if (instruction.name === 'ch') {
+    } else if (instruction.name === 'Controlled H') {
       layer.set_qubit(qubitsUsed[0], elements.Bullet());
       layer.set_qubit(qubitsUsed[1], elements.BoxOnQuWire('H'));
 
-    } else if (instruction.name === 'cu1') {
+    } else if (instruction.name === 'Controlled U1') {
       let connector_label = params_for_label(instruction)[0];
       layer.set_qubit(qubitsUsed[0], elements.Bullet());
-      layer.set_qubit(qubitsUsed[1], elements.Bullet());
+      layer.set_qubit(qubitsUsed[1], elements.BoxOnQuWire('U1'));
 
-    } else if (instruction.name === 'cu3') {
+    } else if (instruction.name === 'Controlled U3') {
       let params = params_for_label(instruction);
       layer.set_qubit(qubitsUsed[0], elements.Bullet())
       layer.set_qubit(qubitsUsed[1], elements.BoxOnQuWire("U3(" + params.join(',') + ')'))
 
-    } else if (instruction.name === 'crz') {
+    } else if (instruction.name === 'Controlled Rz') {
       let params = params_for_label(instruction)[0],
           label = "Rz(" + params + ")";
       layer.set_qubit(qubitsUsed[0], elements.Bullet());
@@ -412,14 +447,47 @@ const elements = {
     };
   },
 
-  BoxOnQuWire: (qb) => {
+  BoxOnQuWire: (qb, connectors) => {
     return {
       toString: () => {
         return '└───┘';
       },
-      top: '┌───┐',
+      top: ((connectors && connectors.top_connector) ? ('┌─' + connectors.top_connector + '─┐') : ('┌─' + qb.split('').map(d => '─').join('') + '─┐')),
       mid: '┤ ' + qb + ' ├',
-      bot: '└───┘'
+      bot: '└─' + qb.split('').map(d => '─').join('') + '─┘'
+    };
+  },
+
+  BoxOnQuWireTop: (qb) => {
+    return {
+      toString: () => {
+        return '└───┘';
+      },
+      top: '───',
+      mid: '',
+      bot: '│ ' + qb + ' │',
+    };
+  },
+
+  BoxOnQuWireMid: (qb) => {
+    return {
+      toString: () => {
+        return '└───┘';
+      },
+      top: '│ ' + qb + ' │',
+      mid: '',
+      bot: '│ ' + qb + ' │'
+    };
+  },
+
+  BoxOnQuWireBot: (qb) => {
+    return {
+      toString: () => {
+        return '└───┘';
+      },
+      top: '│ ' + qb + ' │',
+      mid: '',
+      bot: '───'
     };
   },
 
@@ -428,10 +496,21 @@ const elements = {
       toString: () => {
         return '■';
       },
-      top: ' ',
-      mid: '■',
-      bot: ' '
+      top: '     ',
+      mid: '──■──',
+      bot: '     '
     };
+  },
+
+  Ex: (bot_connect) => {
+    return {
+      toString: () => {
+        return '─X─';
+      },
+      top: '     ',
+      mid: '──X──',
+      bot: '  ' + bot_connect + '  '
+    }
   },
 
   InputWire: (longname) => {
@@ -461,9 +540,9 @@ const elements = {
       toString: () => {
         return arrow_char;
       },
-      top: 't',
+      top: ' ',
       mid: arrow_char,
-      bot: 'b'
+      bot: ' '
     };
   }
 };
